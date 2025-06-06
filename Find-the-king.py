@@ -3,7 +3,7 @@ from tkinter import messagebox
 import random
 
 BOARD_SIZE = 5
-INITIAL_VALUES = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11
+INITIAL_VALUES = [1] * 7 + [2] * 5 + [3] * 5 + [4] * 4 + [5] * 3 + ["K"]
 
 class Cell:
     def __init__(self, value):
@@ -17,7 +17,7 @@ class GameBoard:
         self.setup_board()
 
     def setup_board(self):
-        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11
+        values = INITIAL_VALUES.copy()
         random.shuffle(values)
         idx = 0
         for i in range(BOARD_SIZE):
@@ -64,6 +64,9 @@ class KraliBulGUI:
         self.player = Player()
         self.five_hints = {}
         self.no_five_cells = set()
+        self.completed_rows = set()
+        self.completed_cols = set()
+        self.completed_diagonals = set()
 
         self.create_widgets()
         self.update_status()
@@ -164,43 +167,46 @@ class KraliBulGUI:
 
         result = ""
         color = "white"
-        burn_card = isinstance(card, int) and card < 5 and has_five_neighbor and self.player.cards.get(5, 0) > 0
+        reuse = False
+        close_delay = None
 
         if cell.value == "K":
             if card == "K":
-                self.player.score += 150
-                result = "Kral kartıyla Kralı buldun! +150 puan"
+                # bonus if king card is played last
+                if self.player.card_index == len(self.player.card_sequence) and all(v == 0 for v in self.player.cards.values()):
+                    self.player.score += 300
+                    result = "Son hamlede kralı buldun! +300 puan"
+                else:
+                    self.player.score += 150
+                    result = "Kral kartıyla kralı buldun! +150 puan"
             else:
-                result = "Kralı buldun ama kart yandı, puan yok"
+                result = "Kralı buldun, puan yok"
             color = "white"
-            self.root.after(800, lambda: self.close_cell(x, y))
-        elif cell.value == "💀":
-            self.player.score -= 5
-            result = "Kuru Kafa! -5 puan"
-            color = "black"
-        elif isinstance(cell.value, int) and cell.value != 0:
-            if burn_card:
-                result = "Kartın yandı, puan yok"
-                color = "red"
-            elif card > cell.value:
-                self.player.score += 1
-                result = "+1 puan"
-                color = "lightgreen"
+            close_delay = 800
+        elif isinstance(cell.value, int):
+            if card == 5:
+                if has_five_neighbor:
+                    result = "5 kartı yandı"
+                    color = "red"
+                else:
+                    self.player.score += 50
+                    result = "5 kartı başarılı! +50 puan"
+                # 5 kartı her durumda harcanır
             elif card < cell.value:
-                self.player.score -= 1
-                result = "-1 puan"
+                result = "Kart küçük, puan yok"
                 color = "orange"
-            else:
-                result = "Beraberlik, puan yok"
-                color = "lightgray"
-            if card > cell.value:
-                self.root.after(800, lambda: self.close_cell(x, y))
-        else:
-            result = "Nötr hücre"
-            color = "white"
-
-        # Buton görünümünü güncelle
-        show_val = cell.value if cell.value != 0 else ""
+                close_delay = 1000
+            elif card == cell.value:
+                self.player.score += 10
+                result = "+10 puan"
+                color = "lightblue"
+            else:  # card > cell.value
+                self.player.score += 10
+                result = "+10 puan"
+                color = "lightgreen"
+                reuse = True
+        
+        show_val = cell.value
         self.cell_buttons[x][y].config(text=show_val, bg=color, state=tk.DISABLED)
 
         # Tarihçeye ekle
@@ -212,13 +218,16 @@ class KraliBulGUI:
             self.show_hints(x, y, card)
 
         self.update_predictions()
+        self.check_bonus()
 
-        reuse = isinstance(card, int) and isinstance(cell.value, int) and card > cell.value and not burn_card
         if reuse:
             self.player.cards[card] += 1
             self.player.card_index -= 1
             if card in self.card_buttons:
                 self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
+
+        if close_delay is not None:
+            self.root.after(close_delay, lambda: self.close_cell(x, y))
 
         self.update_status()
 
@@ -230,6 +239,7 @@ class KraliBulGUI:
         cell.opened = False
         self.cell_buttons[x][y].config(text="?", bg="SystemButtonFace", state=tk.NORMAL)
         self.update_predictions()
+        self.check_bonus()
 
     def show_hints(self, x, y, card):
         neighbors = self.board.get_neighbors(x, y)
@@ -285,6 +295,25 @@ class KraliBulGUI:
                     val = random.choice(choices)
                     pool.remove(val)
                 self.pred_labels[i][j].config(text=val)
+
+    def check_bonus(self):
+        # check rows
+        for i in range(BOARD_SIZE):
+            if i not in self.completed_rows and all(self.board.board[i][j].opened for j in range(BOARD_SIZE)):
+                self.completed_rows.add(i)
+                self.player.score += 20
+        # check columns
+        for j in range(BOARD_SIZE):
+            if j not in self.completed_cols and all(self.board.board[i][j].opened for i in range(BOARD_SIZE)):
+                self.completed_cols.add(j)
+                self.player.score += 20
+        # check diagonals
+        if "main" not in self.completed_diagonals and all(self.board.board[i][i].opened for i in range(BOARD_SIZE)):
+            self.completed_diagonals.add("main")
+            self.player.score += 100
+        if "anti" not in self.completed_diagonals and all(self.board.board[i][BOARD_SIZE-1-i].opened for i in range(BOARD_SIZE)):
+            self.completed_diagonals.add("anti")
+            self.player.score += 100
 
     def end_game(self):
         self.game_over = True

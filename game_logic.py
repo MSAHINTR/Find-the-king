@@ -2,6 +2,8 @@ import random
 
 BOARD_SIZE = 5
 
+INITIAL_VALUES = [1] * 7 + [2] * 5 + [3] * 5 + [4] * 4 + [5] * 3 + ["K"]
+
 class Cell:
     def __init__(self, value):
         self.value = value
@@ -14,7 +16,7 @@ class GameBoard:
         self.setup_board()
 
     def setup_board(self):
-        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11
+        values = INITIAL_VALUES.copy()
         random.shuffle(values)
         idx = 0
         for i in range(BOARD_SIZE):
