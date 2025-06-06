@@ -6,7 +6,7 @@ BOARD_SIZE = 5
 
 class Cell:
     def __init__(self, value):
-        self.value = value  # "K", "💀", 1-5, or 0 (nötr)
+        self.value = value  # "K", "💀", or 1-5
         self.opened = False
 
 class GameBoard:
@@ -15,7 +15,15 @@ class GameBoard:
         self.setup_board()
 
     def setup_board(self):
-        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11  # 25 hücre
+        values = (
+            [1] * 7 +
+            [2] * 4 +
+            [3] * 4 +
+            [4] * 4 +
+            [5] * 3 +
+            ["K"] +
+            ["💀"] * 2
+        )
         random.shuffle(values)
         idx = 0
         for i in range(BOARD_SIZE):
@@ -36,9 +44,21 @@ class GameBoard:
 
 class Player:
     def __init__(self):
-        self.cards = {1: 2, 2: 2, 3: 2, 4: 2, 5: 2}
+        self.cards = {1: 5, 2: 3, 3: 2, 4: 1, 5: 1}
+        # automatic play order: five 1s, three 2s, two 3s, one 4, one 5
+        self.card_sequence = [1] * 5 + [2] * 3 + [3] * 2 + [4] + [5]
+        self.card_index = 0
         self.score = 0
         self.history = []
+
+    def draw_next_card(self):
+        while self.card_index < len(self.card_sequence):
+            card = self.card_sequence[self.card_index]
+            self.card_index += 1
+            if self.cards.get(card, 0) > 0:
+                self.cards[card] -= 1
+                return card
+        return None
 
 class KraliBulGUI:
     def __init__(self, root):
@@ -48,7 +68,6 @@ class KraliBulGUI:
 
         self.board = GameBoard()
         self.player = Player()
-        self.selected_card = None
 
         self.create_widgets()
         self.update_status()
@@ -62,8 +81,12 @@ class KraliBulGUI:
 
         self.card_buttons = {}
         for idx, num in enumerate([1, 2, 3, 4, 5]):
-            btn = tk.Button(self.card_frame, text=f"{num} ({self.player.cards[num]})", width=8,
-                            command=lambda n=num: self.select_card(n))
+            btn = tk.Button(
+                self.card_frame,
+                text=f"{num} ({self.player.cards[num]})",
+                width=8,
+                state=tk.DISABLED,
+            )
             btn.grid(row=0, column=idx, padx=2, pady=3)
             self.card_buttons[num] = btn
 
@@ -83,14 +106,6 @@ class KraliBulGUI:
         self.history_label = tk.Label(self.root, text="Seçim Geçmişi:", anchor="w", justify="left")
         self.history_label.grid(row=3, column=0, columnspan=BOARD_SIZE, sticky="w")
 
-    def select_card(self, num):
-        if self.player.cards[num] == 0:
-            messagebox.showwarning("Kart Yok", f"{num} numaralı kartın kalmadı!")
-            return
-        self.selected_card = num
-        for n, btn in self.card_buttons.items():
-            btn.config(relief=tk.RAISED)
-        self.card_buttons[num].config(relief=tk.SUNKEN)
 
     def open_cell(self, x, y):
         if self.game_over:
@@ -99,12 +114,10 @@ class KraliBulGUI:
         if cell.opened:
             return
 
-        if self.selected_card is None:
-            messagebox.showinfo("Kart seçimi", "Önce bir kart seçmelisin!")
+        card = self.player.draw_next_card()
+        if card is None:
+            messagebox.showinfo("Kart Yok", "Kullanacak kart kalmadı!")
             return
-
-        card = self.selected_card
-        self.player.cards[card] -= 1
         self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
         cell.opened = True
 
@@ -150,11 +163,6 @@ class KraliBulGUI:
 
         # İpucu efektleri
         self.show_hints(x, y, card)
-
-        self.selected_card = None
-        for n, btn in self.card_buttons.items():
-            btn.config(relief=tk.RAISED)
-
         self.update_status()
 
         if self.game_over or all(v == 0 for v in self.player.cards.values()):
