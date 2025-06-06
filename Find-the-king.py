@@ -186,16 +186,16 @@ class KraliBulGUI:
         elif isinstance(cell.value, int):
             if card == 5:
                 if has_five_neighbor:
-                    result = "5 kartı yandı"
-                    color = "red"
-                else:
                     self.player.score += 50
                     result = "5 kartı başarılı! +50 puan"
+                    color = "lightgreen"
+                else:
+                    result = "5 kartı yandı"
+                    color = "red"
                 # 5 kartı her durumda harcanır
             elif card < cell.value:
                 result = "Kart küçük, puan yok"
                 color = "orange"
-                close_delay = 1000
             elif card == cell.value:
                 self.player.score += 10
                 result = "+10 puan"
@@ -205,6 +205,7 @@ class KraliBulGUI:
                 result = "+10 puan"
                 color = "lightgreen"
                 reuse = True
+                close_delay = 1000
         
         show_val = cell.value
         self.cell_buttons[x][y].config(text=show_val, bg=color, state=tk.DISABLED)
