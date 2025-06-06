@@ -206,6 +206,7 @@ class KraliBulGUI:
                 result = "+10 puan"
                 color = "lightblue"
             else:  # card > cell.value
+                # larger card allows reuse and the cell closes again
                 self.player.score += 10
                 result = "+10 puan"
                 color = "lightgreen"
