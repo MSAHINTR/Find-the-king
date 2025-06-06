@@ -169,6 +169,7 @@ class KraliBulGUI:
         color = "white"
         reuse = False
         close_delay = None
+        show_val = cell.value
 
         if cell.value == "K":
             if card == "K":
@@ -182,6 +183,7 @@ class KraliBulGUI:
             else:
                 result = "Kralı buldun, puan yok"
             color = "white"
+            show_val = "?"  # king should never be shown
             close_delay = 800
         elif isinstance(cell.value, int):
             if card == 5:
@@ -207,7 +209,6 @@ class KraliBulGUI:
                 reuse = True
                 close_delay = 1000
         
-        show_val = cell.value
         self.cell_buttons[x][y].config(text=show_val, bg=color, state=tk.DISABLED)
 
         # Tarihçeye ekle
@@ -246,9 +247,6 @@ class KraliBulGUI:
         neighbors = self.board.get_neighbors(x, y)
         hint_cells = []
         any_five = any(ncell.value == 5 for _, _, ncell in neighbors)
-        for nx, ny, ncell in neighbors:
-            if ncell.value == "K":
-                hint_cells.append((nx, ny))
         if any_five:
             hint_cells = list({(nx, ny) for nx, ny, _ in neighbors} | set(hint_cells))
         if hint_cells:
