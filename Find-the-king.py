@@ -112,8 +112,32 @@ class KraliBulGUI:
 
         self.history_label.grid(row=3, column=0, columnspan=BOARD_SIZE, sticky="w")
 
-        self.pred_frame = tk.Frame(self.root)
-        self.pred_frame.grid(row=4, column=0, columnspan=BOARD_SIZE, pady=5)
+        # side panel for discovered cards and predictions
+        self.side_frame = tk.Frame(self.root)
+        self.side_frame.grid(row=0, column=BOARD_SIZE, rowspan=5, padx=5, sticky="n")
+
+        tk.Label(self.side_frame, text="Bulunanlar").pack()
+        self.found_frame = tk.Frame(self.side_frame)
+        self.found_frame.pack()
+        self.found_labels = []
+        for i in range(BOARD_SIZE):
+            row = []
+            for j in range(BOARD_SIZE):
+                lbl = tk.Label(
+                    self.found_frame,
+                    text="?",
+                    width=4,
+                    height=2,
+                    relief=tk.SUNKEN,
+                    font=("Arial", 14)
+                )
+                lbl.grid(row=i, column=j, padx=1, pady=1)
+                row.append(lbl)
+            self.found_labels.append(row)
+
+        tk.Label(self.side_frame, text="Tahminler").pack(pady=(10, 0))
+        self.pred_frame = tk.Frame(self.side_frame)
+        self.pred_frame.pack()
         self.pred_labels = []
         for i in range(BOARD_SIZE):
             row = []
@@ -121,10 +145,10 @@ class KraliBulGUI:
                 lbl = tk.Label(
                     self.pred_frame,
                     text="?",
-                    width=5,
+                    width=4,
                     height=2,
                     relief=tk.SUNKEN,
-                    font=("Arial", 14)
+                    font=("Arial", 12)
                 )
                 lbl.grid(row=i, column=j, padx=1, pady=1)
                 row.append(lbl)
@@ -137,7 +161,7 @@ class KraliBulGUI:
         if self.game_over:
             return
         cell = self.board.board[x][y]
-        if cell.opened:
+        if cell.opened or cell.revealed:
             return
 
         card = self.player.draw_next_card()
@@ -173,7 +197,6 @@ class KraliBulGUI:
 
         if cell.value == "K":
             if card == "K":
-                # bonus if king card is played last
                 if self.player.card_index == len(self.player.card_sequence) and all(v == 0 for v in self.player.cards.values()):
                     self.player.score += 300
                     result = "Son hamlede kralı buldun! +300 puan"
@@ -183,8 +206,8 @@ class KraliBulGUI:
             else:
                 result = "Kralı buldun, puan yok"
             color = "white"
-            show_val = "?"  # king should never be shown
-            close_delay = 800
+            show_val = "K"
+            close_delay = 1000
         elif isinstance(cell.value, int):
             if card < 5 and self.player.cards.get(5, 0) > 0 and has_five_neighbor:
                 result = "Kart yandı"
@@ -214,6 +237,7 @@ class KraliBulGUI:
                 close_delay = 1000
         
         self.cell_buttons[x][y].config(text=show_val, bg=color, state=tk.DISABLED)
+        self.found_labels[x][y].config(text=cell.value)
 
         # Tarihçeye ekle
         self.player.history.append(((x, y), card, cell.value, result))
