@@ -3,6 +3,7 @@ from tkinter import messagebox
 import random
 
 BOARD_SIZE = 5
+# Board distribution: seven 1s, five 2s, five 3s, four 4s, three 5s and one king
 INITIAL_VALUES = [1] * 7 + [2] * 5 + [3] * 5 + [4] * 4 + [5] * 3 + ["K"]
 
 class Cell:
@@ -168,6 +169,7 @@ class KraliBulGUI:
         if card is None:
             messagebox.showinfo("Kart Yok", "Kullanacak kart kalmadı!")
             return
+        # A large card closes the cell again; equal or smaller cards stay open
         if card in self.card_buttons:
             self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
         cell.opened = True
@@ -225,11 +227,12 @@ class KraliBulGUI:
                 result = "Kart küçük, puan yok"
                 color = "orange"
             elif card == cell.value:
+                # equal value keeps the cell open
                 self.player.score += 10
                 result = "+10 puan"
                 color = "lightblue"
             else:  # card > cell.value
-                # larger card allows reuse and the cell closes again
+                # larger card closes again and allows reuse
                 self.player.score += 10
                 result = "+10 puan"
                 color = "lightgreen"
@@ -303,24 +306,24 @@ class KraliBulGUI:
         self.history_label.config(text="\n".join(lines))
 
     def update_predictions(self):
-        remaining = INITIAL_VALUES.copy()
-        for i in range(BOARD_SIZE):
-            for j in range(BOARD_SIZE):
-                cell = self.board.board[i][j]
-                if cell.revealed and cell.value in remaining:
-                    remaining.remove(cell.value)
+        """Refresh the lower panel showing guessed values.
 
-        random.shuffle(remaining)
-        pool = remaining.copy()
+        Cells noted in ``no_five_cells`` never display the value ``5`` unless no
+        other option exists. Predictions are otherwise random and independent of
+        the remaining deck to keep the logic simple.
+        """
+
         for i in range(BOARD_SIZE):
             for j in range(BOARD_SIZE):
                 cell = self.board.board[i][j]
                 if cell.revealed:
                     val = cell.value
                 else:
-                    choices = [v for v in pool if not ((i, j) in self.no_five_cells and v == 5)] or pool
+                    if (i, j) in self.no_five_cells:
+                        choices = [1, 2, 3, 4]
+                    else:
+                        choices = [1, 2, 3, 4, 5]
                     val = random.choice(choices)
-                    pool.remove(val)
                 self.pred_labels[i][j].config(text=val)
 
     def check_bonus(self):

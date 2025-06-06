@@ -2,6 +2,7 @@ import random
 
 BOARD_SIZE = 5
 
+# Board distribution matches the GUI module
 INITIAL_VALUES = [1] * 7 + [2] * 5 + [3] * 5 + [4] * 4 + [5] * 3 + ["K"]
 
 class Cell:
