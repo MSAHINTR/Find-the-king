@@ -15,7 +15,7 @@ class GameBoard:
         self.setup_board()
 
     def setup_board(self):
-        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 9  # 25 hücre
+        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11  # 25 hücre
         random.shuffle(values)
         idx = 0
         for i in range(BOARD_SIZE):
