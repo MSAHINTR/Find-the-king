@@ -186,14 +186,17 @@ class KraliBulGUI:
             show_val = "?"  # king should never be shown
             close_delay = 800
         elif isinstance(cell.value, int):
-            if card == 5:
+            if card < 5 and self.player.cards.get(5, 0) > 0 and has_five_neighbor:
+                result = "Kart yandı"
+                color = "red"
+            elif card == 5:
                 if has_five_neighbor:
+                    result = "5 kartı yandı"
+                    color = "red"
+                else:
                     self.player.score += 50
                     result = "5 kartı başarılı! +50 puan"
                     color = "lightgreen"
-                else:
-                    result = "5 kartı yandı"
-                    color = "red"
                 # 5 kartı her durumda harcanır
             elif card < cell.value:
                 result = "Kart küçük, puan yok"
