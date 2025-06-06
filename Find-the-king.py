@@ -121,8 +121,13 @@ class KraliBulGUI:
         self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
         cell.opened = True
 
+        neighbors = self.board.get_neighbors(x, y)
+        has_five_neighbor = any(ncell.value == 5 for _, _, ncell in neighbors)
+
         result = ""
         color = "white"
+        burn_card = card < 5 and has_five_neighbor and self.player.cards.get(5, 0) > 0
+
         if cell.value == "K":
             if card == 5:
                 self.player.score += 10
@@ -132,13 +137,16 @@ class KraliBulGUI:
                 self.player.score -= 5
                 result = "Kral'ı yanlış kartla açtın! -5 puan!"
                 color = "red"
-            self.game_over = True
+            self.root.after(800, lambda: self.close_cell(x, y))
         elif cell.value == "💀":
             self.player.score -= 5
             result = "Kuru Kafa! -5 puan"
             color = "black"
         elif isinstance(cell.value, int) and cell.value != 0:
-            if card > cell.value:
+            if burn_card:
+                result = "Kartın yandı, puan yok"
+                color = "red"
+            elif card > cell.value:
                 self.player.score += 1
                 result = "+1 puan"
                 color = "lightgreen"
@@ -163,17 +171,32 @@ class KraliBulGUI:
 
         # İpucu efektleri
         self.show_hints(x, y, card)
+
+        reuse = isinstance(cell.value, int) and card > cell.value and not burn_card
+        if reuse:
+            self.player.cards[card] += 1
+            self.player.card_index -= 1
+            self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
+
         self.update_status()
 
         if self.game_over or all(v == 0 for v in self.player.cards.values()):
             self.end_game()
 
+    def close_cell(self, x, y):
+        cell = self.board.board[x][y]
+        cell.opened = False
+        self.cell_buttons[x][y].config(text="?", bg="SystemButtonFace", state=tk.NORMAL)
+
     def show_hints(self, x, y, card):
         neighbors = self.board.get_neighbors(x, y)
         hint_cells = []
+        any_five = any(ncell.value == 5 for _, _, ncell in neighbors)
         for nx, ny, ncell in neighbors:
-            if ncell.value == "K" or ncell.value == 5:
+            if ncell.value == "K":
                 hint_cells.append((nx, ny))
+        if any_five:
+            hint_cells = list({(nx, ny) for nx, ny, _ in neighbors} | set(hint_cells))
         if hint_cells:
             for nx, ny in hint_cells:
                 self.cell_buttons[nx][ny].config(bg="cyan")
