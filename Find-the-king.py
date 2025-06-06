@@ -3,7 +3,7 @@ from tkinter import messagebox
 import random
 
 BOARD_SIZE = 5
-INITIAL_VALUES = [1] * 9 + [2] * 4 + [3] * 4 + [4] * 4 + [5] * 3 + ["K"]
+INITIAL_VALUES = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11
 
 class Cell:
     def __init__(self, value):
@@ -17,14 +17,7 @@ class GameBoard:
         self.setup_board()
 
     def setup_board(self):
-        values = (
-            [1] * 9 +
-            [2] * 4 +
-            [3] * 4 +
-            [4] * 4 +
-            [5] * 3 +
-            ["K"]
-        )
+        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11
         random.shuffle(values)
         idx = 0
         for i in range(BOARD_SIZE):
@@ -45,9 +38,9 @@ class GameBoard:
 
 class Player:
     def __init__(self):
-        self.cards = {1: 5, 2: 3, 3: 2, 4: 1, 5: 1}
-        # automatic play order: five 1s, three 2s, two 3s, one 4, one 5
-        self.card_sequence = [1] * 5 + [2] * 3 + [3] * 2 + [4] + [5]
+        self.cards = {1: 5, 2: 3, 3: 2, 4: 1, 5: 1, "K": 1}
+        # automatic play order: five 1s, three 2s, two 3s, one 4, one 5, one king card
+        self.card_sequence = [1] * 5 + [2] * 3 + [3] * 2 + [4] + [5] + ["K"]
         self.card_index = 0
         self.score = 0
         self.history = []
@@ -69,6 +62,8 @@ class KraliBulGUI:
 
         self.board = GameBoard()
         self.player = Player()
+        self.five_hints = {}
+        self.no_five_cells = set()
 
         self.create_widgets()
         self.update_status()
@@ -81,7 +76,7 @@ class KraliBulGUI:
         self.card_frame.grid(row=1, column=0, columnspan=BOARD_SIZE)
 
         self.card_buttons = {}
-        for idx, num in enumerate([1, 2, 3, 4, 5]):
+        for idx, num in enumerate([1, 2, 3, 4, 5, "K"]):
             btn = tk.Button(
                 self.card_frame,
                 text=f"{num} ({self.player.cards[num]})",
@@ -146,27 +141,43 @@ class KraliBulGUI:
         if card is None:
             messagebox.showinfo("Kart Yok", "Kullanacak kart kalmadı!")
             return
-        self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
+        if card in self.card_buttons:
+            self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
         cell.opened = True
         cell.revealed = True
 
         neighbors = self.board.get_neighbors(x, y)
         has_five_neighbor = any(ncell.value == 5 for _, _, ncell in neighbors)
+        self.five_hints[(x, y)] = has_five_neighbor
+        if not has_five_neighbor:
+            for nx, ny, _ in neighbors:
+                if not self.board.board[nx][ny].revealed:
+                    self.no_five_cells.add((nx, ny))
+        else:
+            for (hx, hy), hint in self.five_hints.items():
+                if not hint:
+                    nf = {(nx, ny) for nx, ny, _ in self.board.get_neighbors(hx, hy)}
+                    cur = {(nx, ny) for nx, ny, _ in neighbors}
+                    for cx, cy in nf & cur:
+                        if not self.board.board[cx][cy].revealed:
+                            self.no_five_cells.add((cx, cy))
 
         result = ""
         color = "white"
-        burn_card = card < 5 and has_five_neighbor and self.player.cards.get(5, 0) > 0
+        burn_card = isinstance(card, int) and card < 5 and has_five_neighbor and self.player.cards.get(5, 0) > 0
 
         if cell.value == "K":
-            if card == 5:
-                self.player.score += 10
-                result = "Kral'ı doğru kartla buldun! +10 puan!"
-                color = "gold"
+            if card == "K":
+                self.player.score += 150
+                result = "Kral kartıyla Kralı buldun! +150 puan"
             else:
-                self.player.score -= 5
-                result = "Kral'ı yanlış kartla açtın! -5 puan!"
-                color = "red"
+                result = "Kralı buldun ama kart yandı, puan yok"
+            color = "white"
             self.root.after(800, lambda: self.close_cell(x, y))
+        elif cell.value == "💀":
+            self.player.score -= 5
+            result = "Kuru Kafa! -5 puan"
+            color = "black"
         elif isinstance(cell.value, int) and cell.value != 0:
             if burn_card:
                 result = "Kartın yandı, puan yok"
@@ -182,7 +193,7 @@ class KraliBulGUI:
             else:
                 result = "Beraberlik, puan yok"
                 color = "lightgray"
-            if card >= cell.value:
+            if card > cell.value:
                 self.root.after(800, lambda: self.close_cell(x, y))
         else:
             result = "Nötr hücre"
@@ -196,16 +207,18 @@ class KraliBulGUI:
         self.player.history.append(((x, y), card, cell.value, result))
         self.update_history()
 
-        # İpucu efektleri
-        self.show_hints(x, y, card)
+        # İpucu efektleri (kral için efekt uygulanmaz)
+        if cell.value != "K":
+            self.show_hints(x, y, card)
 
         self.update_predictions()
 
-        reuse = isinstance(cell.value, int) and card > cell.value and not burn_card
+        reuse = isinstance(card, int) and isinstance(cell.value, int) and card > cell.value and not burn_card
         if reuse:
             self.player.cards[card] += 1
             self.player.card_index -= 1
-            self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
+            if card in self.card_buttons:
+                self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
 
         self.update_status()
 
@@ -261,15 +274,16 @@ class KraliBulGUI:
                     remaining.remove(cell.value)
 
         random.shuffle(remaining)
-        idx = 0
+        pool = remaining.copy()
         for i in range(BOARD_SIZE):
             for j in range(BOARD_SIZE):
                 cell = self.board.board[i][j]
                 if cell.revealed:
                     val = cell.value
                 else:
-                    val = remaining[idx]
-                    idx += 1
+                    choices = [v for v in pool if not ((i, j) in self.no_five_cells and v == 5)] or pool
+                    val = random.choice(choices)
+                    pool.remove(val)
                 self.pred_labels[i][j].config(text=val)
 
     def end_game(self):

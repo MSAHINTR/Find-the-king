@@ -14,14 +14,7 @@ class GameBoard:
         self.setup_board()
 
     def setup_board(self):
-        values = (
-            [1] * 9 +
-            [2] * 4 +
-            [3] * 4 +
-            [4] * 4 +
-            [5] * 3 +
-            ["K"]
-        )
+        values = [1, 2, 3, 4, 5] * 2 + ["K"] + ["💀"] * 3 + [0] * 11
         random.shuffle(values)
         idx = 0
         for i in range(BOARD_SIZE):
