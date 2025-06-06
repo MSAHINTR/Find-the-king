@@ -6,6 +6,7 @@ class Cell:
     def __init__(self, value):
         self.value = value
         self.opened = False
+        self.revealed = False
 
 class GameBoard:
     def __init__(self):
@@ -14,13 +15,12 @@ class GameBoard:
 
     def setup_board(self):
         values = (
-            [1] * 7 +
+            [1] * 9 +
             [2] * 4 +
             [3] * 4 +
             [4] * 4 +
             [5] * 3 +
-            ["K"] +
-            ["💀"] * 2
+            ["K"]
         )
         random.shuffle(values)
         idx = 0

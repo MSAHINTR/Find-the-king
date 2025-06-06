@@ -3,11 +3,13 @@ from tkinter import messagebox
 import random
 
 BOARD_SIZE = 5
+INITIAL_VALUES = [1] * 9 + [2] * 4 + [3] * 4 + [4] * 4 + [5] * 3 + ["K"]
 
 class Cell:
     def __init__(self, value):
-        self.value = value  # "K", "💀", or 1-5
+        self.value = value  # "K" or 1-5
         self.opened = False
+        self.revealed = False
 
 class GameBoard:
     def __init__(self):
@@ -16,13 +18,12 @@ class GameBoard:
 
     def setup_board(self):
         values = (
-            [1] * 7 +
+            [1] * 9 +
             [2] * 4 +
             [3] * 4 +
             [4] * 4 +
             [5] * 3 +
-            ["K"] +
-            ["💀"] * 2
+            ["K"]
         )
         random.shuffle(values)
         idx = 0
@@ -97,14 +98,41 @@ class KraliBulGUI:
         for i in range(BOARD_SIZE):
             row = []
             for j in range(BOARD_SIZE):
-                b = tk.Button(self.grid_frame, text="?", width=4, height=2,
-                              command=lambda x=i, y=j: self.open_cell(x, y), font=("Arial", 18))
+                b = tk.Button(
+                    self.grid_frame,
+                    text="?",
+                    width=5,
+                    height=2,
+                    command=lambda x=i, y=j: self.open_cell(x, y),
+                    font=("Arial", 20)
+                )
                 b.grid(row=i, column=j, padx=2, pady=2)
                 row.append(b)
             self.cell_buttons.append(row)
 
         self.history_label = tk.Label(self.root, text="Seçim Geçmişi:", anchor="w", justify="left")
+
         self.history_label.grid(row=3, column=0, columnspan=BOARD_SIZE, sticky="w")
+
+        self.pred_frame = tk.Frame(self.root)
+        self.pred_frame.grid(row=4, column=0, columnspan=BOARD_SIZE, pady=5)
+        self.pred_labels = []
+        for i in range(BOARD_SIZE):
+            row = []
+            for j in range(BOARD_SIZE):
+                lbl = tk.Label(
+                    self.pred_frame,
+                    text="?",
+                    width=5,
+                    height=2,
+                    relief=tk.SUNKEN,
+                    font=("Arial", 14)
+                )
+                lbl.grid(row=i, column=j, padx=1, pady=1)
+                row.append(lbl)
+            self.pred_labels.append(row)
+
+        self.update_predictions()
 
 
     def open_cell(self, x, y):
@@ -120,6 +148,7 @@ class KraliBulGUI:
             return
         self.card_buttons[card].config(text=f"{card} ({self.player.cards[card]})")
         cell.opened = True
+        cell.revealed = True
 
         neighbors = self.board.get_neighbors(x, y)
         has_five_neighbor = any(ncell.value == 5 for _, _, ncell in neighbors)
@@ -138,10 +167,6 @@ class KraliBulGUI:
                 result = "Kral'ı yanlış kartla açtın! -5 puan!"
                 color = "red"
             self.root.after(800, lambda: self.close_cell(x, y))
-        elif cell.value == "💀":
-            self.player.score -= 5
-            result = "Kuru Kafa! -5 puan"
-            color = "black"
         elif isinstance(cell.value, int) and cell.value != 0:
             if burn_card:
                 result = "Kartın yandı, puan yok"
@@ -157,6 +182,8 @@ class KraliBulGUI:
             else:
                 result = "Beraberlik, puan yok"
                 color = "lightgray"
+            if card >= cell.value:
+                self.root.after(800, lambda: self.close_cell(x, y))
         else:
             result = "Nötr hücre"
             color = "white"
@@ -171,6 +198,8 @@ class KraliBulGUI:
 
         # İpucu efektleri
         self.show_hints(x, y, card)
+
+        self.update_predictions()
 
         reuse = isinstance(cell.value, int) and card > cell.value and not burn_card
         if reuse:
@@ -187,6 +216,7 @@ class KraliBulGUI:
         cell = self.board.board[x][y]
         cell.opened = False
         self.cell_buttons[x][y].config(text="?", bg="SystemButtonFace", state=tk.NORMAL)
+        self.update_predictions()
 
     def show_hints(self, x, y, card):
         neighbors = self.board.get_neighbors(x, y)
@@ -221,6 +251,26 @@ class KraliBulGUI:
         for (x, y), card, val, res in self.player.history[-5:]:
             lines.append(f"{x+1},{y+1} → Kart:{card} | Hücre:{val} | {res}")
         self.history_label.config(text="\n".join(lines))
+
+    def update_predictions(self):
+        remaining = INITIAL_VALUES.copy()
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                cell = self.board.board[i][j]
+                if cell.revealed and cell.value in remaining:
+                    remaining.remove(cell.value)
+
+        random.shuffle(remaining)
+        idx = 0
+        for i in range(BOARD_SIZE):
+            for j in range(BOARD_SIZE):
+                cell = self.board.board[i][j]
+                if cell.revealed:
+                    val = cell.value
+                else:
+                    val = remaining[idx]
+                    idx += 1
+                self.pred_labels[i][j].config(text=val)
 
     def end_game(self):
         self.game_over = True
